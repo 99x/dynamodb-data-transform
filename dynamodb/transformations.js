@@ -1,15 +1,15 @@
 'use strict';
 
-var BbPromise = require('bluebird'),
+const BbPromise = require('bluebird'),
     fs = require('fs');
 
-var formatTableName = function(transformation, options) {
+const formatTableName = function(transformation, options) {
     return options.tablePrefix + transformation.TableName + options.tableSuffix;
 };
 
-var create = function(transformationName, options) {
+const create = function(transformationName, options) {
     return new BbPromise(function(resolve, reject) {
-        var template = require('./templates/template');
+        const template = require('./templates/template');
         template.Table.TableName = transformationName;
 
         if (!fs.existsSync(options.dir)) {
@@ -27,55 +27,56 @@ var create = function(transformationName, options) {
 };
 module.exports.create = create;
 
-var executeAll = function(dynamodb, options) {
+const executeAll = function(dynamodb, options) {
     return new BbPromise(function(resolve, reject) {
         fs.readdirSync(options.dir).forEach(function(file) {
-            var transformation = require(options.dir + '/' + file);
+            const transformation = require(options.dir + '/' + file);
             transformation.TableName = formatTableName(transformation, options);
-            /* 1) Scan sets table records asynchronously
-               2) Call transformation.Transform method for the set
-               3) Batch Update these records
-            */
+            /**
+             * 1) Scan sets table records asynchronously
+             * 2) Call transformation.Transform method for the set
+             * 3) Batch Update these records
+             */
         });
     });
 };
 module.exports.executeAll = executeAll;
 
-var execute = function(dynamodb, options) {
+const execute = function(dynamodb, options) {
     return new BbPromise(function(resolve, reject) {
-        var transformation = require(options.dir + '/' + options.transformationName + '.js');
+        const transformation = require(options.dir + '/' + options.transformationName + '.js');
         transformation.TableName = formatTableName(transformation, options);
 
-        var lastKey = "",
-            isExecuting = false,
-            updatedCount = 0,
-            readParams = {
+        let lastKey = "";
+        let isExecuting = false;
+        let updatedCount = 0;
+        let readParams = {
                 TableName: transformation.TableName,
                 Limit: 25,
                 Select: 'ALL_ATTRIBUTES'
-            },
-            processWriteDataset = function(items, outArray) {
+        };
+        let processWriteDataset = function(items, outArray) {
                 items.forEach(function(item) {
-                    var tmpItem = {
+                    const tmpItem = {
                         'PutRequest': {
                             'Item': item
                         }
                     };
                     outArray.push(tmpItem);
                 });
-            },
-            executeReadWriteCycle = function(rparams) {
+        };
+        let executeReadWriteCycle = function(rparams) {
                 isExecuting = true;
                 dynamodb.doc.scan(rparams, function(err, data) {
                     if (err) {
-                        reject("Scan failed"+err+ JSON.stringify(rparams));
+                        reject('Scan failed'+err+ JSON.stringify(rparams));
                     } else {
                         lastKey = data.LastEvaluatedKey ? data.LastEvaluatedKey : "";
                         if (data.Items) {
-                            var processedData = [],
-                                writeParams = {
+                            const processedData = [];
+                            const writeParams = {
                                     RequestItems: {}
-                                };
+                            };
                                 
                             data.Items.forEach(function(item) {
                                 transformation.Transformation(item);
@@ -101,11 +102,11 @@ var execute = function(dynamodb, options) {
 
         executeReadWriteCycle(readParams);
 
-        var intvl = setInterval(function() {
+        const intvl = setInterval(function() {
             if (!isExecuting) {
                 if (lastKey === "") {
                     clearInterval(intvl);
-                    resolve("Updated "+updatedCount+ " records");
+                    resolve('Updated '+updatedCount+ ' records');
                 } else {
                     readParams["ExclusiveStartKey"] = lastKey;
                     executeReadWriteCycle(readParams);
