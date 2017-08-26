@@ -1,13 +1,13 @@
 'use strict';
 
-var transformations = require('./dynamodb/transformations'),
+let transformations = require('./dynamodb/transformations'),
     tableOpt = {
         prefix: "",
         suffix: ""
     },
     dynamo, dir;
 
-var manager = {
+const manager = {
     init: function (dynamodb, transformationDir) {
         dynamo = dynamodb;
         dir = transformationDir;
